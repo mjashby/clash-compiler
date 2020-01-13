@@ -54,7 +54,7 @@ import Clash.Explicit.Signal
   unbundle, unsafeSynchronizer, veryUnsafeSynchronizer)
 import Clash.Signal.Internal (Clock (..), Reset (..))
 import Clash.Signal
-  (mux, DomainResetKind, ResetKind(Asynchronous), KnownDomain,
+  (mux, DomainResetKind, ResetKind(Asynchronous), KnownDomain(..),
   Enable)
 import Clash.Sized.Index     (Index)
 import Clash.Sized.Internal.BitVector
@@ -449,7 +449,7 @@ tbClockGen
   :: KnownDomain testDom
   => Signal testDom Bool
   -> Clock testDom
-tbClockGen done = Clock (done `seq` SSymbol)
+tbClockGen done = Clock (done `seq` SSymbol) knownDomain
 {-# NOINLINE tbClockGen #-}
 {-# ANN tbClockGen hasBlackBox #-}
 

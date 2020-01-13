@@ -178,7 +178,7 @@ romFile
   -- ^ Read address @rd@
   -> Signal dom (BitVector m)
   -- ^ The value of the ROM at address @rd@ from the previous clock cycle
-romFile = \clk en sz file rd -> romFile# clk en sz file (fromEnum <$> rd)
+romFile clk en sz file = romFile# clk en sz file . fmap fromEnum
 {-# INLINE romFile #-}
 
 -- | romFile primitive

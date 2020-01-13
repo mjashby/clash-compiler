@@ -556,12 +556,11 @@ dflipflop
   => Clock dom
   -> Signal dom a
   -> Signal dom a
-dflipflop clk i =
+dflipflop clk =
   delay
     clk
     (toEnable (pure True))
     (deepErrorX "First value of dflipflop undefined")
-    i
 {-# INLINE dflipflop #-}
 
 -- | \"@'delay' clk s@\" delays the values in 'Signal' /s/ for once cycle, the

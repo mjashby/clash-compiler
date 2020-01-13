@@ -89,7 +89,7 @@ rom
   -- ^ Read address @rd@
   -> Signal dom a
   -- ^ The value of the ROM at address @rd@ from the previous clock cycle
-rom = \clk en content rd -> rom# clk en content (fromEnum <$> rd)
+rom clk en content = rom# clk en content . fmap fromEnum
 {-# INLINE rom #-}
 
 -- | ROM primitive

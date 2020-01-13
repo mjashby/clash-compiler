@@ -203,7 +203,7 @@ blockRamFile
   -> Signal dom (BitVector m)
   -- ^ Value of the @blockRAM@ at address @r@ from the previous
   -- clock cycle
-blockRamFile = \clk gen sz file rd wrM ->
+blockRamFile clk gen sz file rd wrM =
   let en       = isJust <$> wrM
       (wr,din) = unbundle (fromJust <$> wrM)
   in  withFrozenCallStack
@@ -232,7 +232,7 @@ blockRamFile#
   -- ^ Value to write (at address @w@)
   -> Signal dom (BitVector m)
   -- ^ Value of the @blockRAM@ at address @r@ from the previous clock cycle
-blockRamFile# (Clock _) ena _sz file rd wen =
+blockRamFile# (Clock _ _) ena _sz file rd wen =
   go
     ramI
     (withFrozenCallStack (errorX "blockRamFile#: intial value undefined"))

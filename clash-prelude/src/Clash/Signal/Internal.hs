@@ -82,6 +82,7 @@ module Clash.Signal.Internal
     -- * Clocks
   , Clock (..)
   , clockTag
+  , clockDomain
   , hzToPeriod
   , periodToHz
     -- ** Enabling
@@ -781,16 +782,23 @@ enableGen :: Enable dom
 enableGen = toEnable (pure True)
 
 -- | A clock signal belonging to a domain named /dom/.
-data Clock (dom :: Domain) = Clock (SSymbol dom)
+data Clock (dom :: Domain)
+  = Clock (SSymbol dom) (SDomainConfiguration dom (KnownConf dom))
 
 instance Show (Clock dom) where
-  show (Clock dom) = "<Clock: " ++ show dom ++ ">"
+  show (Clock dom _) = "<Clock: " ++ show dom ++ ">"
 
 -- | Extract dom symbol from Clock
 clockTag
   :: Clock dom
   -> SSymbol dom
-clockTag (Clock dom) = dom
+clockTag (Clock dom _) = dom
+
+-- TODO Maybe move to class ? 
+clockDomain
+  :: Clock dom
+  -> SDomainConfiguration dom (KnownConf dom)
+clockDomain (Clock _ conf) = conf
 
 -- | Clock generator for simulations. Do __not__ use this clock generator for
 -- for the /testBench/ function, use 'tbClockGen' instead.
@@ -805,11 +813,9 @@ clockTag (Clock dom) = dom
 clockGen
   :: KnownDomain dom
   => Clock dom
-clockGen = Clock SSymbol
+clockGen = Clock SSymbol knownDomain
 {-# NOINLINE clockGen #-}
 {-# ANN clockGen hasBlackBox #-}
-
-
 
 -- | Reset generator
 --
@@ -857,7 +863,7 @@ resetGenN n =
 -- | A reset signal belonging to a domain called /dom/.
 --
 -- The underlying representation of resets is 'Bool'.
-data Reset (dom :: Domain) = Reset (Signal dom Bool)
+newtype Reset (dom :: Domain) = Reset (Signal dom Bool)
 
 -- | Non-ambiguous version of 'Clash.Signal.Internal.Ambiguous.resetPolarity'
 resetPolarityProxy
@@ -1033,12 +1039,12 @@ delay#
   -> a
   -> Signal dom a
   -> Signal dom a
-delay# (Clock dom) (fromEnable -> en) powerUpVal0 =
+delay# (Clock dom conf) (fromEnable -> en) powerUpVal0 =
     go powerUpVal1 en
   where
     powerUpVal1 :: a
     powerUpVal1 =
-      case knownDomainByName dom of
+      case conf of
         SDomainConfiguration _dom _period _edge _sync SDefined _polarity ->
           powerUpVal0
         SDomainConfiguration _dom _period _edge _sync SUnknown _polarity ->
@@ -1075,8 +1081,8 @@ register#
   -- ^ Reset value
   -> Signal dom a
   -> Signal dom a
-register# (Clock dom) rst (fromEnable -> ena) powerUpVal0 resetVal =
-  case knownDomainByName dom of
+register# (Clock dom conf) rst (fromEnable -> ena) powerUpVal0 resetVal =
+  case conf of
     SDomainConfiguration _name _period _edge SSynchronous _init _polarity ->
       goSync powerUpVal1 (unsafeToHighPolarity rst) ena
     SDomainConfiguration _name _period _edge SAsynchronous _init _polarity ->
@@ -1084,7 +1090,7 @@ register# (Clock dom) rst (fromEnable -> ena) powerUpVal0 resetVal =
  where
   powerUpVal1 :: a
   powerUpVal1 =
-    case knownDomainByName dom of
+    case conf of
       SDomainConfiguration _dom _period _edge _sync SDefined _polarity ->
         powerUpVal0
       SDomainConfiguration _dom _period _edge _sync SUnknown _polarity ->

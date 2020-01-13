@@ -97,7 +97,7 @@ clockWizardDifferential
   -- ^ Reset for the PLL
   -> (Clock domOut, Enable domOut)
   -- ^ (Stable PLL clock, PLL lock)
-clockWizardDifferential !_name (Clock _) (Clock _) rst =
-  (Clock SSymbol, unsafeCoerce (toEnable (unsafeToHighPolarity rst)))
+clockWizardDifferential !_name (Clock _ _) (Clock _ _) rst =
+  (Clock SSymbol knownDomain, unsafeCoerce (toEnable (unsafeToHighPolarity rst)))
 {-# NOINLINE clockWizardDifferential #-}
 {-# ANN clockWizardDifferential hasBlackBox #-}
