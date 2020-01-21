@@ -226,7 +226,7 @@ stepApp x y m tcm =
                 Just . setTerm e' $ stackPush (PrimApply p (rights args) [] es) m
 
               _ -> error "internal error"
-
+      
             LT -> newBinder tys' (App x y) m tcm
 
             GT -> let (m0, n) = newLetBinding tcm m y
