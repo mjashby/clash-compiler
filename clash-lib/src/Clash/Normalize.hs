@@ -41,7 +41,7 @@ import           SrcLoc                           (SrcSpan,noSrcSpan)
 
 import           Clash.Annotations.BitRepresentation.Internal
   (CustomReprs)
-import           Clash.Core.Evaluator.Types       (PrimStep, PrimUnwind)
+import           Clash.Core.Evaluator.Models      (EvalPrim)
 import           Clash.Core.FreeVars
   (freeLocalIds, globalIds, globalIdOccursIn, localIdDoesNotOccurIn)
 import           Clash.Core.Name (nameOcc) -- TODO
@@ -96,7 +96,7 @@ runNormalization
   -- ^ TyCon cache
   -> IntMap TyConName
   -- ^ Tuple TyCon cache
-  -> (PrimStep, PrimUnwind)
+  -> EvalPrim
   -- ^ Hardcoded evaluator (delta-reduction)
   -> CompiledPrimMap
   -- ^ Primitive Definitions
@@ -127,7 +127,7 @@ runNormalization opts supply globals typeTrans reprs tcm tupTcm eval primMap rcs
                   supply
                   (error $ $(curLoc) ++ "Report as bug: no curFun",noSrcSpan)
                   0
-                  (IntMap.empty, 0)
+                  emptyVarEnv
                   normState
 
     normState = NormalizeState

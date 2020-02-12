@@ -147,7 +147,7 @@ import           Clash.Backend.VHDL (VHDLState)
 import           Clash.Backend.Verilog (VerilogState)
 import qualified Clash.Driver
 import           Clash.Driver.Types (ClashOpts(..))
-import           Clash.GHC.Evaluator
+import           Clash.GHC.PrimEval
 import           Clash.GHC.GenerateBindings
 import           Clash.GHC.NetlistTypes
 import           Clash.GHCi.Common
@@ -2152,7 +2152,7 @@ makeHDL backend optsRef srcs = do
                   tcm
                   tupTcm
                   (ghcTypeToHWType iw fp)
-                  primEvaluator
+                  primEval
                   topEntities
                   opts2
                   (startTime,prepTime)

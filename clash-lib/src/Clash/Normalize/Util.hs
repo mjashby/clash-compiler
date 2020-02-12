@@ -393,11 +393,7 @@ isCheapFunction tm = case classifyFunction tm of
     | _selection <= 1 -> _function  <= 0 && _primitive <= 0
     | otherwise       -> False
 
-normalizeTopLvlBndr
-  :: Bool
-  -> Id
-  -> Binding
-  -> NormalizeSession Binding
+normalizeTopLvlBndr :: Bool -> Id -> Binding -> NormalizeSession Binding
 normalizeTopLvlBndr isTop nm (Binding nm' sp inl tm) = makeCachedU nm (extra.normalized) $ do
   tcm <- Lens.view tcCache
   let nmS = showPpr (varName nm)

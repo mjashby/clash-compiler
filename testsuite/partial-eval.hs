@@ -21,6 +21,7 @@ import Clash.Core.Evaluator.Semantics
 import Clash.Core.VarEnv
 import Clash.Driver.Types
 import Clash.GHC.GenerateBindings
+import Clash.GHC.PrimEval
 import Clash.Netlist.BlackBox.Types (HdlSyn(Other))
 import Clash.Unique
 
@@ -36,8 +37,8 @@ runPE src = do
   ps  <- primDirs backend
   ids <- newSupply
   (bm, tcm, _, _, _, _) <- generateBindings Auto ps ["."] [] (hdlKind backend) src Nothing
-  let idsTerms = fmap (\(i, _, _, t) -> (i,t)) (eltsUniqMap bm)
-  mapM_ (\(i,t) -> print i >> print (partialEval emptyVarEnv bm tcm emptyInScopeSet ids t)) idsTerms
+  let idsTerms = fmap (\b -> (bindingId b, bindingTerm b)) (eltsUniqMap bm)
+  mapM_ (\(i,t) -> print i >> print (partialEval primEval emptyVarEnv bm tcm emptyInScopeSet ids t)) idsTerms
 
 main :: IO ()
 main = do

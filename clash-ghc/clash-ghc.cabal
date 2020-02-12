@@ -180,10 +180,24 @@ library
   Exposed-Modules:    Clash.Main
 
                       -- exposed for use by the benchmarks
-                      Clash.GHC.Evaluator
                       Clash.GHC.GenerateBindings
                       Clash.GHC.LoadModules
                       Clash.GHC.NetlistTypes
+
+                      Clash.GHC.PrimEval
+                      Clash.GHC.PrimEval.Bit
+                      Clash.GHC.PrimEval.BitVector
+                      Clash.GHC.PrimEval.ByteArray
+                      Clash.GHC.PrimEval.Char
+                      Clash.GHC.PrimEval.Common
+                      Clash.GHC.PrimEval.Convert
+                      Clash.GHC.PrimEval.Double
+                      Clash.GHC.PrimEval.EnumTag
+                      Clash.GHC.PrimEval.Float
+                      Clash.GHC.PrimEval.Int
+                      Clash.GHC.PrimEval.Integer
+                      Clash.GHC.PrimEval.Narrowings
+                      Clash.GHC.PrimEval.Word
 
                       Clash.GHCi.Common
 

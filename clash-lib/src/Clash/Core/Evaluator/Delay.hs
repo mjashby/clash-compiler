@@ -1,6 +1,7 @@
 module Clash.Core.Evaluator.Delay
   ( Delay
   , delay
+  , bot
   , runDelay
   ) where
 
@@ -38,4 +39,7 @@ runDelay (Later f) = runDelay f
 
 delay :: Delay a -> Delay a
 delay = Later
+
+bot :: Delay a
+bot = delay bot
 

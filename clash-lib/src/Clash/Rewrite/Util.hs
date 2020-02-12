@@ -55,7 +55,7 @@ import           System.IO.Unsafe            (unsafePerformIO)
 import           BasicTypes                  (InlineSpec (..))
 
 import           Clash.Core.DataCon          (dcExtTyVars)
-import           Clash.Core.Evaluator        (whnf')
+import           Clash.Core.Evaluator.Semantics (partialEval)
 import           Clash.Core.Evaluator.Types  (PureHeap)
 import           Clash.Core.FreeVars
   (freeLocalVars, hasLocalFreeVars, localIdDoesNotOccurIn, localIdOccursIn,
@@ -977,25 +977,29 @@ specArgBndrsAndVars specArg =
 -- | Evaluate an expression to weak-head normal form (WHNF), and apply a
 -- transformation on the expression in WHNF.
 whnfRW
-  :: Bool
-  -- ^ Whether the expression we're reducing to WHNF is the subject of a
-  -- case expression.
-  -> TransformContext
+  :: TransformContext
   -> Term
   -> Rewrite extra
   -> RewriteMonad extra Term
-whnfRW isSubj ctx@(TransformContext is0 _) e rw = do
+whnfRW (TransformContext is0 _) e _ = do
   tcm <- Lens.view tcCache
   bndrs <- Lens.use bindings
-  (primEval, primUnwind) <- Lens.view evaluator
+  primEval <- Lens.view evaluator
   ids <- Lens.use uniqSupply
   let (ids1,ids2) = splitSupply ids
   uniqSupply Lens..= ids2
   gh <- Lens.use globalHeap
-  case whnf' primEval primUnwind bndrs tcm gh ids1 is0 isSubj e of
+
+  -- TODO The new globalHeap and localHeap are needed here
+  -- to update the internal state of the normalizer.
+  --
+  case partialEval primEval gh bndrs tcm is0 ids1 e of
+    _ -> undefined
+{-
     (!gh1,ph,v) -> do
       globalHeap Lens..= gh1
       bindPureHeap tcm ph rw ctx v
+-}
 
 -- | Binds variables on the PureHeap over the result of the rewrite
 --

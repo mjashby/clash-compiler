@@ -561,7 +561,7 @@ caseCon ctx@(TransformContext is0 _) e@(Case subj ty alts) = case collectArgsTic
   -- The subject is an applied primitive
   (Prim _,_,_) ->
     -- We try to reduce the applied primitive to WHNF
-    whnfRW True ctx subj $ \ctx1 subj1 -> case collectArgsTicks subj1 of
+    whnfRW ctx subj $ \ctx1 subj1 -> case collectArgsTicks subj1 of
       -- WHNF of subject is a literal, try `caseCon` with that
       (Literal l,_,_) -> caseCon ctx1 (Case (Literal l) ty alts)
       -- WHNF of subject is a data-constructor, try `caseCon` with that
@@ -2031,7 +2031,7 @@ reduceBinders is processed body ((id_,expr):binders) = case List.find ((== expr)
 reduceConst :: HasCallStack => NormRewrite
 reduceConst ctx e@(App _ _)
   | (Prim p0, _) <- collectArgs e
-  = whnfRW False ctx e $ \_ctx1 e1 -> case e1 of
+  = whnfRW ctx e $ \_ctx1 e1 -> case e1 of
       (collectArgs -> (Prim p1, _)) | primName p0 == primName p1 -> return e
       _ -> changed e1
 

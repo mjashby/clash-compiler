@@ -187,7 +187,6 @@ Library
                       Clash.Backend.VHDL
 
                       Clash.Core.DataCon
-                      Clash.Core.Evaluator
                       Clash.Core.Evaluator.Delay
                       Clash.Core.Evaluator.Models
                       Clash.Core.Evaluator.Semantics

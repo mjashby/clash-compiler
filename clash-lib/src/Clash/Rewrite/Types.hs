@@ -35,12 +35,12 @@ import Data.Monoid                           (Any)
 import qualified Data.Set                    as Set
 import GHC.Generics
 
-import Clash.Core.Evaluator.Types      (PrimHeap, PrimStep, PrimUnwind)
+import Clash.Core.Evaluator.Models
 import Clash.Core.Term           (Term, Context)
 import Clash.Core.Type           (Type)
 import Clash.Core.TyCon          (TyConName, TyConMap)
 import Clash.Core.Var            (Id)
-import Clash.Core.VarEnv         (InScopeSet, VarSet)
+import Clash.Core.VarEnv         (InScopeSet, VarEnv, VarSet)
 import Clash.Driver.Types        (BindingMap, DebugLevel)
 import Clash.Netlist.Types       (FilteredHWType, HWMap)
 import Clash.Util
@@ -75,7 +75,7 @@ data RewriteState extra
   -- ^ Function which is currently normalized
   , _nameCounter      :: {-# UNPACK #-} !Int
   -- ^ Used for 'Fresh'
-  , _globalHeap       :: PrimHeap
+  , _globalHeap       :: VarEnv Term
   -- ^ Used as a heap for compile-time evaluation of primitives that live in I/O
   , _extra            :: !extra
   -- ^ Additional state
@@ -100,7 +100,7 @@ data RewriteEnv
   -- ^ TyCon cache
   , _tupleTcCache   :: IntMap TyConName
   -- ^ Tuple TyCon cache
-  , _evaluator      :: (PrimStep, PrimUnwind)
+  , _evaluator      :: EvalPrim
   -- ^ Hardcoded evaluator (delta-reduction)}
   , _topEntities    :: VarSet
   -- ^ Functions that are considered TopEntities

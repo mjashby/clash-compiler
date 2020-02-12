@@ -13,7 +13,7 @@ import Clash.Core.Type
 import Clash.Core.Var
 import Clash.Driver
 import Clash.Driver.Types
-import Clash.GHC.Evaluator
+import Clash.GHC.PrimEval
 import Clash.GHC.GenerateBindings
 import Clash.GHC.NetlistTypes
 import Clash.Netlist.BlackBox.Types (HdlSyn(Other))
@@ -86,6 +86,6 @@ runNormalisationStage idirs src = do
     runInputStage idirs src
   let opts1 = opts idirs
       transformedBindings =
-        normalizeEntity reprs bindingsMap primMap tcm tupTcm typeTrans primEvaluator
+        normalizeEntity reprs bindingsMap primMap tcm tupTcm typeTrans primEval
           topEntityNames opts1 supplyN topEntity
   return (transformedBindings,topEntities,primMap,tcm,reprs,topEntity)

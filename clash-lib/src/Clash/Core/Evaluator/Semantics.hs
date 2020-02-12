@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE RecursiveDo #-}
 
 module Clash.Core.Evaluator.Semantics
   ( partialEval
@@ -9,12 +8,11 @@ module Clash.Core.Evaluator.Semantics
 
 import Prelude hiding (lookup, pi)
 
-import Debug.Trace
-
 import Control.Concurrent.Supply (Supply)
 import Data.Bitraversable (bitraverse)
 import qualified Data.Either as Either
-import Data.Foldable (find)
+
+import BasicTypes (InlineSpec(..))
 
 import Clash.Core.DataCon
 import Clash.Core.Evaluator.Delay
@@ -31,15 +29,16 @@ import Clash.Driver.Types
 -- being delayed - returning the original subterm if we exceed this.
 --
 partialEval
-  :: VarEnv Term
+  :: EvalPrim
+  -> VarEnv Term
   -> BindingMap
   -> TyConMap
   -> InScopeSet
   -> Supply
   -> Term
   -> Nf
-partialEval ps bm tcm is ids x =
-  runDelay (evaluate (mkEnv ps bm tcm is ids) x >>= quote)
+partialEval eval ps bm tcm is ids x =
+  runDelay (evaluate (mkEnv eval ps bm tcm is ids) x >>= quote)
 
 -- TODO Currently, a globally bound term which is not WHNF is re-evalauted
 -- every time it is looked up in the environment. We should keep this result
@@ -64,9 +63,17 @@ evaluate env = \case
 
 lookup :: Id -> Env -> Delay Value
 lookup i e
-  | Just v <- lookupVarEnv i (envLocals e) = return v
-  | Just etv <- lookupVarEnv i (envGlobals e) = either (evaluate e) return etv
-  | otherwise = error ("lookup: No value " <> show i <> " in env")
+  | Just etv <- lookupVarEnv i (envLocals e)
+  = go etv
+
+  | Just (s, etv) <- lookupVarEnv i (envGlobals e)
+  , s == Inline || s == Inlinable
+  = go etv
+
+  | otherwise
+  = return (VNeu (NeVar i))
+ where
+  go = either (evaluate e) return
 
 evaluateApp :: Env -> Term -> Term -> Delay Value
 evaluateApp env x y = do
@@ -86,13 +93,14 @@ evaluateApp env x y = do
     | otherwise
     = return (VData dc (args <> [Left v]))
 
-  -- TODO Delay evaluation of special primitives (although that should be in GHC.Evaluator)
   primApp pi args v
     | length tys == length args
     = error "evaluateApp.primApp: Overapplied prim"
 
     | length tys == length args + 1
-    = error "evaluateApp.primApp: Reduce prim here" -- TODO reduce fully applied prim
+    = envPrimEval env env pi (args <> [Left v]) >>= \case
+        Just r -> return r
+        Nothing -> error ("evaluateApp: Could not evaluate prim " <> show (primName pi))
 
     | otherwise
     = return (VPrim pi (args <> [Left v])) 
@@ -121,7 +129,9 @@ evaluateTyApp env x ty = do
     = error "evaluateTyApp.primTyApp: Overapplied prim"
 
     | length tys == length args + 1
-    = error "evaluateTyApp.primTyApp: Reduce prim here" -- TODO reduce fully applied prim
+    = envPrimEval env env pi (args <> [Right ty]) >>= \case
+        Just r -> return r
+        Nothing -> error ("evaluateTyApp: Could not evaluate prim " <> show (primName pi))
 
     | otherwise
     = return (VPrim pi (args <> [Right ty]))
@@ -129,14 +139,11 @@ evaluateTyApp env x ty = do
     tys = fst $ splitFunForallTy (primType pi)
 
 evaluateLetrec :: Env -> [LetBinding] -> Term -> Delay Value
-evaluateLetrec env bs x = mdo
-  evalBs <- traverse (traverse (evaluate env')) bs
-  evalX <- evaluate env' x
-
-  -- TODO Make the inserted ids unique in the heap first.
+evaluateLetrec env bs x = do
+  let evalBs = fmap Left <$> bs
   let env' = foldr (uncurry $ extendEnv LocalId) env evalBs
 
-  return (VLetrec evalBs evalX)
+  evaluate env' x
 
 evaluateCase :: Env -> Term -> [Alt] -> Delay Value
 evaluateCase env x xs = do
@@ -145,47 +152,51 @@ evaluateCase env x xs = do
   case evalX of
     VLit l -> litCase l
     VData dc args -> dataCase dc args
-    VPrim dc args -> primCase (traceShowId dc) args
+    VPrim pi args -> primCase pi args
     v -> error ("evaluateCase: Cannot scrutinise " <> show v)
  where
   litCase l = undefined
-    
+
+  evalDataPat args tvs ids e =
+    let tys  = zip tvs (Either.rights args)
+        tms  = zip ids (Either.lefts args)
+        env' = env
+                { envLocals = extendVarEnvList (envLocals env) (fmap Right <$> tms)
+                , envTypes  = extendVarEnvList (envTypes env) tys
+                -- TODO Extend InScopeSet ?
+                }
+     in evaluate env' e
+
   dataCase dc args =
     let matches = \case
           DataPat c _ _ -> dc == c
           LitPat _ -> False
           DefaultPat -> True
 
-        eval (DataPat _ tvs ids, e) =
-          let tys  = zip tvs (Either.rights args)
-              tms  = zip ids (Either.lefts args)
-              env' = env
-                      { envLocals = extendVarEnvList (envLocals env) tms
-                      , envTypes  = extendVarEnvList (envTypes env) tys
-                      -- TODO Extend InScopeSet
-                      } 
-           in evaluate env' e
-        eval (DefaultPat, e) =
-          evaluate env e
+        eval (pat, e) = case pat of
+          DataPat _ tvs ids -> evalDataPat args tvs ids e
+          DefaultPat -> evaluate env e
+          _ -> error ("dataCase: Cannot match on pattern " <> show pat)
 
      in evalAlts env matches eval xs
 
-  primCase dc args =
-    let matches = \case
-          LitPat{} -> True
-          DefaultPat -> True
-          DataPat{} -> False
+  primCase _ args =
+    let eval (pat, e) = case pat of
+          DataPat _ tvs ids -> evalDataPat args tvs ids e
+          LitPat _ -> error "primCase.LitPat"
+          DefaultPat -> evaluate env e
 
-        eval (LitPat l, e) = error "primCase.LitPat"
-        eval (DefaultPat, e) = error "primCase.DefaultPat"
-
-     in evalAlts env matches eval (traceShowId xs)
+     in evalAlts env (const True) eval xs
 
 evalAlts :: Env -> (Pat -> Bool) -> (Alt -> Delay Value) -> [Alt] -> Delay Value
 evalAlts env isMatch eval alts =
-  case find (isMatch . fst) alts of
-    Just alt -> eval alt
-    Nothing  -> error "evalAlts: No matching alternatives for case"
+  case filter (isMatch . fst) alts of
+    [] -> error "evalAlts: No matching alternatives for case"
+    (x:xs) -> eval (bestMatch x xs)
+ where
+  bestMatch (DefaultPat, e) [] = (DefaultPat, e)
+  bestMatch (DefaultPat, _) xs = head xs
+  bestMatch alt _ = alt
 
 evaluateCast :: Env -> Term -> Type -> Type -> Delay Value
 evaluateCast env x a b = do
@@ -203,7 +214,7 @@ apply (collectValueTicks -> (v1, ts)) v2 =
     VNeu n -> return (addTicks (VNeu (NeApp n v2)) ts)
 
     VLam x e env ->
-      let val = evaluate (extendEnv LocalId x v2 env) e
+      let val = evaluate (extendEnv LocalId x (Right v2) env) e
        in delay (fmap (`addTicks` ts) val)
 
     _ -> error ("apply: Cannot apply value to " <> show v1)
@@ -227,7 +238,6 @@ quote = \case
   VPrim pi args -> quotePrim pi args
   VLam x e env -> quoteLam x e env
   VTyLam x e env -> quoteTyLam x e env
-  VLetrec bs x -> quoteLetrec bs x
   VCast x a b -> quoteCast x a b
   VTick x ti -> quoteTick x ti
   VNeu n -> NNeu <$> quoteNeutral n
@@ -252,13 +262,6 @@ quoteTyLam :: TyVar -> Term -> Env -> Delay Nf
 quoteTyLam x e env =
   fmap (NTyLam x) . delay $ applyTy (VTyLam x e env) (VarTy x) >>= quote
 
-quoteLetrec :: [(Id, Value)] -> Value -> Delay Nf
-quoteLetrec bs x = do
-  quoteBs <- traverse (traverse quote) bs
-  quoteX <- quote x
-
-  return (NLetrec quoteBs quoteX)
-
 quoteCast :: Value -> Type -> Type -> Delay Nf
 quoteCast x a b = do
   quoteX <- quote x
@@ -276,7 +279,6 @@ quoteNeutral = \case
   NeVar v -> return (NeVar v)
   NeApp x y -> quoteApp x y
   NeTyApp x ty -> quoteTyApp x ty
-  NeCase x ty xs -> quoteCase x ty xs
 
 quoteApp :: Neutral Value -> Value -> Delay (Neutral Nf)
 quoteApp x y = do
@@ -290,11 +292,4 @@ quoteTyApp x ty = do
   quoteX <- quoteNeutral x
 
   return (NeTyApp quoteX ty)
-
-quoteCase :: Value -> Type -> [(Pat, Value)] -> Delay (Neutral Nf)
-quoteCase x ty xs = do
-  quoteX <- quote x
-  quoteXs <- traverse (traverse quote) xs
-
-  return (NeCase quoteX ty quoteXs)
 
