@@ -6,17 +6,19 @@ module Clash.Core.Evaluator.Semantics
   , quote
   ) where
 
-import Prelude hiding (lookup, pi)
+import Prelude hiding (pi)
 
 import Control.Concurrent.Supply (Supply)
 import Data.Bitraversable (bitraverse)
 import qualified Data.Either as Either
+import Debug.Trace
 
 import BasicTypes (InlineSpec(..))
 
 import Clash.Core.DataCon
 import Clash.Core.Evaluator.Delay
 import Clash.Core.Evaluator.Models
+import Clash.Core.Name
 import Clash.Core.Term
 import Clash.Core.TyCon
 import Clash.Core.Type
@@ -48,7 +50,7 @@ partialEval eval ps bm tcm is ids x =
 --
 evaluate :: Env -> Term -> Delay Value
 evaluate env = \case
-  Var v -> lookup v env
+  Var v -> evaluateVar env v
   Data dc -> return (VData dc [])
   Literal l -> return (VLit l)
   Prim pi -> return (VPrim pi [])
@@ -61,17 +63,28 @@ evaluate env = \case
   Cast x a b -> evaluateCast env x a b
   Tick ti x -> evaluateTick env x ti
 
-lookup :: Id -> Env -> Delay Value
-lookup i e
+evaluateVar :: Env -> Id -> Delay Value
+evaluateVar e i
   | Just etv <- lookupVarEnv i (envLocals e)
-  = go etv
+  = do
+      v <- go etv
+      traceM ("evaluateVar: local " <> show i <> " resolves to " <> show v)
+      return v
 
   | Just (s, etv) <- lookupVarEnv i (envGlobals e)
-  , s == Inline || s == Inlinable
-  = go etv
+  = if s == Inline || s == Inlinable
+       then go etv
+       else do
+         traceM $ "evaluateVar: Not using definition of "
+           <> show (nameOcc (varName i))
+           <> " as it's InlineSpec is "
+           <> show s
+
+         return (VNeu (NeVar i))
 
   | otherwise
-  = return (VNeu (NeVar i))
+  = error $ "evaluateVar: Could not find variable "
+      <> show (nameOcc (varName i)) <> " in environment"
  where
   go = either (evaluate e) return
 
@@ -147,14 +160,17 @@ evaluateLetrec env bs x = do
 
 evaluateCase :: Env -> Term -> [Alt] -> Delay Value
 evaluateCase env x xs = do
-  evalX <- evaluate env x
+  evalX <- evaluate env x >>= resolveVar
 
   case evalX of
     VLit l -> litCase l
     VData dc args -> dataCase dc args
     VPrim pi args -> primCase pi args
-    v -> error ("evaluateCase: Cannot scrutinise " <> show v)
+    v -> error ("evaluateCase: Cannot scrutinise " <> show v <> " in " <> show env)
  where
+  resolveVar (VNeu (NeVar i)) = evaluateVar env i
+  resolveVar val = return val
+
   litCase l = undefined
 
   evalDataPat args tvs ids e =

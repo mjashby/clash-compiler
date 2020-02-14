@@ -38,7 +38,7 @@ runPE src = do
   ids <- newSupply
   (bm, tcm, _, _, _, _) <- generateBindings Auto ps ["."] [] (hdlKind backend) src Nothing
   let idsTerms = fmap (\b -> (bindingId b, bindingTerm b)) (eltsUniqMap bm)
-  mapM_ (\(i,t) -> print i >> print (partialEval primEval emptyVarEnv bm tcm emptyInScopeSet ids t)) idsTerms
+  mapM_ (\(i,t) -> print i >> print t >> print (partialEval primEval emptyVarEnv bm tcm emptyInScopeSet ids t)) idsTerms
 
 main :: IO ()
 main = do
