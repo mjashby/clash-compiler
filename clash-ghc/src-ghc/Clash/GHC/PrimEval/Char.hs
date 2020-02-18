@@ -5,6 +5,8 @@ module Clash.GHC.PrimEval.Char
   ( charPrims
   ) where
 
+import Prelude hiding (pi)
+
 import qualified Data.Either as Either
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap (fromList)
@@ -51,5 +53,5 @@ evalComparison# :: (Char# -> Char# -> Int#) -> EvalPrim
 evalComparison# op = evalBinaryOp $ \i j ->
   let !(C# a) = i
       !(C# b) = j
-   in toEnum @Bool $ I# (a `op` b)
+   in I# (a `op` b)
 

@@ -6,6 +6,8 @@ module Clash.GHC.PrimEval.Integer
   ( integerPrims
   ) where
 
+import Prelude hiding (pi)
+
 import qualified Data.Either as Either
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap

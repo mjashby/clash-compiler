@@ -5,6 +5,8 @@ module Clash.GHC.PrimEval.Bit
   ( bitPrims
   ) where
 
+import Prelude hiding (pi)
+
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.Text (Text)

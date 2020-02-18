@@ -6,11 +6,13 @@ module Clash.GHC.PrimEval.Int
   ( intPrims
   ) where
 
+import Prelude hiding (pi)
+
 import qualified Data.Either as Either
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap (fromList)
 import Data.Text (Text)
-import GHC.Float
+import GHC.Float hiding (pi)
 import GHC.Prim
 import GHC.Types
 

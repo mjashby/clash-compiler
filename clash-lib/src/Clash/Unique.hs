@@ -75,8 +75,8 @@ where
 
 import           Control.DeepSeq (NFData)
 import           Data.Binary (Binary)
-import           Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
+import           Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMap
 import qualified Data.List   as List
 import           Data.Text.Prettyprint.Doc
 #if !MIN_VERSION_base(4,11,0)

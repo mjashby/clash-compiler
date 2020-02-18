@@ -7,7 +7,7 @@ import Prelude hiding (lookup, pi)
 
 import Control.Concurrent.Supply (Supply)
 import Control.DeepSeq (NFData(..))
-import Data.Bifunctor (first)
+import Data.Bifunctor (first, second)
 import Data.Foldable (foldl')
 import GHC.Generics (Generic)
 
@@ -83,20 +83,26 @@ extendEnvTy :: TyVar -> Type -> Env -> Env
 extendEnvTy i ty e =
   e { envTypes = extendVarEnv i ty (envTypes e) }
 
-reduceEnv :: IdScope -> Id -> Env -> Env
-reduceEnv LocalId i e =
+deleteEnv :: IdScope -> Id -> Env -> Env
+deleteEnv LocalId i e =
   e { envLocals = delVarEnv (envLocals e) i }
-reduceEnv GlobalId i e =
+deleteEnv GlobalId i e =
   e { envGlobals = delVarEnv (envGlobals e) i }
 
 -- Neutral terms cannot be reduced, as they represent things like variables
 -- which are unknown, partially applied functions, or case expressions where
--- the scrutinee is not yet given.
+-- the scrutinee is not yet an inspectable value. Consider:
+--
+-- v              Stuck if "v" is a free variable
+-- x $ y          Stuck if "x" is not known to be a lambda
+-- x @ A          Stuck if "x" is not known to be a type lambda
+-- case x of ...  Stuck if "x" is neutral (cannot choose an alternative)
 --
 data Neutral a
   = NeVar   (Var Term)
   | NeApp   (Neutral a) a
   | NeTyApp (Neutral a) Type
+  | NeCase  a Type [(Pat, a)]
   deriving (Show, Generic, NFData)
 
 -- A term which has been normalised to weak head normal form (WHNF). This has
@@ -145,6 +151,7 @@ instance (AsTerm a) => AsTerm (Neutral a) where
   asTerm (NeVar v)        = Var v
   asTerm (NeApp x y)      = App (asTerm x) (asTerm y)
   asTerm (NeTyApp x ty)   = TyApp (asTerm x) ty
+  asTerm (NeCase x ty as) = Case (asTerm x) ty (second asTerm <$> as)
 
 instance AsTerm Value where
   asTerm (VNeu n)         = asTerm n

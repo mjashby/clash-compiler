@@ -1,5 +1,7 @@
 module Clash.GHC.PrimEval where
 
+import Prelude hiding (pi)
+
 import qualified Data.HashMap.Strict as HashMap
 
 import Clash.Core.Evaluator.Models
@@ -22,10 +24,13 @@ import Clash.GHC.PrimEval.Word
 -- time 'Nothing' is returned is when an attempt to evaluate a prim fails.
 --
 primEval :: EvalPrim
-primEval env pi args =
+primEval _ pi args =
+  return $ Just (VPrim pi args)
+{-
   case HashMap.lookup (primName pi) primsMap of
     Just f  -> f env pi args
     Nothing -> return $ Just (VPrim pi args)
+-}
  where
   primsMap = mconcat
     [ bitPrims
