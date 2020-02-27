@@ -25,6 +25,7 @@ import           GHC.Stack
 import           Clash.Core.Term                 (Term(Literal), collectArgs)
 import           Clash.Core.Literal
 import           Clash.Core.Pretty               (showPpr)
+import qualified Clash.Verification.Internal        as Cv
 
 import           Clash.Core.TermLiteral.TH
 
@@ -80,6 +81,18 @@ instance TermLiteral a => TermLiteral (Maybe a) where
 
 instance TermLiteral Bool where
   termToData = $(deriveTermToData ''Bool)
+
+instance TermLiteral Cv.RenderAs where
+  termToData = $(deriveTermToData ''Cv.RenderAs)
+
+instance TermLiteral a => TermLiteral (Cv.BasicAssertion' a) where
+  termToData = $(deriveTermToData ''Cv.BasicAssertion')
+
+instance TermLiteral a => TermLiteral (Cv.ModalAssertion' a) where
+  termToData = $(deriveTermToData ''Cv.ModalAssertion')
+
+instance TermLiteral a => TermLiteral (Cv.Property' a) where
+  termToData = $(deriveTermToData ''Cv.Property')
 
 -- | Same as 'termToData', but returns printable error message if it couldn't
 -- translate a term.
